@@ -1,4 +1,5 @@
 import os
+import sys
 import pandas as pd
 from pypdf import PdfReader
 from docx import Document
@@ -117,8 +118,14 @@ def process_matching(excel_path, doc_dir, output_path):
     print("处理完成！")
 
 if __name__ == "__main__":
-    # 配置路径
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    # 配置路径：需要适配 PyInstaller 打包后的路径获取
+    if hasattr(sys, '_MEIPASS'):
+        # 如果是打包后的环境，sys.executable 是 exe 的路径
+        BASE_DIR = os.path.dirname(os.path.abspath(sys.executable))
+    else:
+        # 如果是源代码运行环境
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
     EXCEL_FILE = os.path.join(BASE_DIR, "样本.xlsx")
     DOC_FOLDER = os.path.join(BASE_DIR, "doc")
     OUTPUT_FILE = os.path.join(BASE_DIR, "匹配结果_汇总.xlsx")
