@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+build/
+dist/
+*.spec
+.DS_Store
+匹配结果_汇总.xlsx
+样本.xlsx
+doc/
