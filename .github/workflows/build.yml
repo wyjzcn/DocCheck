@@ -21,11 +21,11 @@ jobs:
     - name: 安装依赖库
       run: |
         python -m pip install --upgrade pip
-        pip install pandas openpyxl pypdf python-docx pyinstaller
+        pip install pandas openpyxl pypdf python-docx pyinstaller cryptography
 
     - name: 使用 PyInstaller 打包
       run: |
-        pyinstaller --onefile --name "文件匹配工具" file_processor.py
+        pyinstaller --onefile --hidden-import cryptography --name "文件匹配工具" file_processor.py
 
     - name: 上传打包产物
       uses: actions/upload-artifact@v4
