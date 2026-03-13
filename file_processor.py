@@ -4,6 +4,10 @@ import pandas as pd
 from pypdf import PdfReader
 from docx import Document
 import re
+from difflib import SequenceMatcher
+
+# 相似度阈值：90%
+SIMILARITY_THRESHOLD = 0.9
 
 def get_pdf_page_count(file_path):
     """获取 PDF 文件页数"""
@@ -74,19 +78,22 @@ def process_matching(excel_path, doc_dir, output_path):
                     'path': os.path.join(root, f)
                 })
 
-    # 3. 匹配与合并结果
+    # 3. 匹配与合并结果（使用相似度模糊匹配）
     results_match = []
     results_file = []
     results_pages = []
+    results_similarity = []
 
     for index, row in df.iterrows():
         title = str(row[target_col]).strip()
         
-        # 寻找该标题的所有匹配项
+        # 寻找该标题的所有匹配项（基于相似度）
         matched_infos = []
         for doc_file in doc_files:
             file_name_without_ext = os.path.splitext(doc_file['name'])[0]
-            if title == file_name_without_ext:
+            # 计算相似度（忽略大小写）
+            similarity = SequenceMatcher(None, title.lower(), file_name_without_ext.lower()).ratio()
+            if similarity >= SIMILARITY_THRESHOLD:
                 f_name = doc_file['name']
                 # 提取页码
                 pages = 0
@@ -96,22 +103,25 @@ def process_matching(excel_path, doc_dir, output_path):
                     pages = get_docx_page_count(doc_file['path'])
                 elif f_name.lower().endswith('.doc'):
                     pages = get_doc_page_count(doc_file['path'])
-                matched_infos.append((f_name, pages))
+                matched_infos.append((f_name, pages, round(similarity * 100, 1)))
 
         if not matched_infos:
             results_match.append('否')
             results_file.append('')
             results_pages.append('')
+            results_similarity.append('')
         else:
             results_match.append('是')
-            # 使用 " - " 作为切分符号，增强可视化效果
+            # 使用 " | " 作为切分符号
             results_file.append(" | ".join([info[0] for info in matched_infos]))
             results_pages.append(" | ".join([str(info[1]) for info in matched_infos]))
+            results_similarity.append(" | ".join([f"{info[2]}%" for info in matched_infos]))
 
     # 4. 更新 DataFrame 并保存
     df['匹配状态'] = results_match
     df['匹配文件名'] = results_file
     df['文件实际页码'] = results_pages
+    df['相似度'] = results_similarity
 
     print(f"正在保存结果到: {output_path}...")
     df.to_excel(output_path, index=False)
