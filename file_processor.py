@@ -7,7 +7,7 @@ import re
 from difflib import SequenceMatcher
 
 # 相似度阈值：90%
-SIMILARITY_THRESHOLD = 0.9
+SIMILARITY_THRESHOLD = 0.7
 
 def get_pdf_page_count(file_path):
     """获取 PDF 文件页数"""
@@ -25,29 +25,39 @@ def get_docx_page_count(file_path):
     """强力获取 Word 文件页数 (支持 python-docx 和 XML 直接解析)"""
     try:
         # 第一步：尝试直接用 python-docx 的 core_properties (注意：不同版本属性名不同)
-        doc = Document(file_path)
-        props = doc.core_properties
-        # 尝试常见的页码属性名
-        pages = getattr(props, 'pages', 0)
-        
-        if pages and pages > 0:
-            return pages
+        try:
+            doc = Document(file_path)
+            props = doc.core_properties
+            # 尝试常见的页码属性名
+            pages = getattr(props, 'pages', 0)
+            
+            if pages and pages > 0:
+                return pages
+        except Exception as e:
+            # 如果 python-docx 解析失败（例如 Package not found），记录日志并继续尝试直接解压
+            if "Package not found" in str(e):
+                print(f"提示: {os.path.basename(file_path)} 可能不是标准的 docx 格式或已损坏。")
             
         # 第二步：如果上面失败了或为0，直接解压读取 docProps/app.xml (这是 OpenXML 的标准)
-        with zipfile.ZipFile(file_path) as z:
-            # 获取所有文件名，确认 app.xml 是否存在
-            if 'docProps/app.xml' in z.namelist():
-                app_xml = z.read('docProps/app.xml')
-                root = ET.fromstring(app_xml)
-                # 定义命名空间
-                ns = {'ns': 'http://schemas.openxmlformats.org/officeDocument/2006/extended-properties'}
-                pages_node = root.find('.//ns:Pages', ns)
-                if pages_node is not None:
-                    return int(pages_node.text)
-        return 0
+        try:
+            with zipfile.ZipFile(file_path) as z:
+                # 获取所有文件名，确认 app.xml 是否存在
+                if 'docProps/app.xml' in z.namelist():
+                    app_xml = z.read('docProps/app.xml')
+                    root = ET.fromstring(app_xml)
+                    # 定义命名空间
+                    ns = {'ns': 'http://schemas.openxmlformats.org/officeDocument/2006/extended-properties'}
+                    pages_node = root.find('.//ns:Pages', ns)
+                    if pages_node is not None:
+                        return int(pages_node.text)
+        except zipfile.BadZipFile:
+            print(f"读取 Word 出错: {os.path.basename(file_path)} 不是有效的压缩包格式。")
+            return "格式错误或损坏"
+            
+        return "页码未找到"
     except Exception as e:
-        print(f"读取 Word {file_path} 出错: {e}")
-        return 0
+        print(f"读取 Word 出错 {os.path.basename(file_path)}: {e}")
+        return "读取失败"
 
 
 def get_doc_page_count(file_path):

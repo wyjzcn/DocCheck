@@ -3,3 +3,4 @@ openpyxl
 pypdf
 python-docx
 pyinstaller
+cryptography
